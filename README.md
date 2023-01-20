@@ -48,3 +48,13 @@ localhost:8443 {
 
 ## Warning 
  it is not stable now.
+
+
+## ref
+
+ - https://github.com/caddyserver/caddy
+ - https://github.com/maxmind/geoipupdate
+ - https://github.com/shift72/caddy-geo-ip
+ - https://github.com/aablinov/caddy-geoip
+ - https://github.com/zhangjiayin/caddy-mysql-adapter
+ - https://github.com/zhangjiayin/caddy-mysql-storage
