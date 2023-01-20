@@ -4,6 +4,12 @@ Provides middleware for resolving a users IP address against the Maxmind Geo IP 
 
 Manages Downloading and Refreshing the Maxmind Database via https://github.com/maxmind/geoipupdate
 
+
+## Warning 
+
+ - $\colorbox{white}{{\color{red}{IT\ IS\ NOT\ STABLE\ NOW.\ TEST\ IT\ FIRST}}}$
+
+ 
 ## Build
 
 ```
@@ -46,8 +52,6 @@ localhost:8443 {
  - geoip2.time_zone
 
 
-## Warning 
- it is not stable now.
 
 
 ## ref
