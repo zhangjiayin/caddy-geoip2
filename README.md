@@ -18,6 +18,7 @@ Manages Downloading and Refreshing the Maxmind Database via https://github.com/m
   http_port     8080
   https_port    8443
   order geoip2_vars first
+  #you can only config databaseDirectory and editionID if autoupdate is not you wanted.
   geoip2 {
      accountId xxxx
      databaseDirectory "/var/lib/geoip2/data"
@@ -43,8 +44,6 @@ geoip2.location_time_zone:{geoip2.location_time_zone}"
 }
 
 ```
-
-you can only config databaseDirectory and editionID if autoupdate is not you wanted.
 
 ## variables
 
