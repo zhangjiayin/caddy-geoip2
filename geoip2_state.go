@@ -97,6 +97,10 @@ func (g *GeoIP2State) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		g.EditionID = "GeoLite2-City"
 	}
 
+	if g.DatabaseDirectory != "" && g.EditionID != "" {
+		go g.runGeoIP2Update()
+	}
+
 	if g.UpdateFrequency > 0 && g.AccountID > 0 && g.LicenseKey != "" {
 		g.runGeoIP2UpdateLoop()
 	}
@@ -115,6 +119,10 @@ func (g *GeoIP2State) runGeoIP2Update() {
 		EditionIDs:        []string{g.EditionID},
 		URL:               g.UpdateUrl,
 	}
+	if g.DatabaseDirectory == "" || g.EditionID == "" {
+		caddy.Log().Named("http.handlers.geoip2").Error(fmt.Sprintf("database is not loaded DatabaseDirectory %s   EditionID %s", g.DatabaseDirectory, g.EditionID))
+		return
+	}
 	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("geoipupdate.Config %v", config))
 	client := geoipupdate.NewClient(&config)
 	dbReader := database.NewHTTPDatabaseReader(client, &config)
@@ -130,6 +138,10 @@ func (g *GeoIP2State) runGeoIP2Update() {
 	if g.DBHandler == nil {
 		g.DBHandler, _ = maxminddb.Open(filePath)
 	}
+	if config.AccountID <= 0 || config.LicenseKey == "" || g.UpdateFrequency <= 0 {
+		caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("auto update is not enabled AccountID %d LicenseKey %s UpdateFrequency %d", config.AccountID, config.LicenseKey, g.UpdateFrequency))
+		return
+	}
 	newFilePath := filePath + ".new"
 	dbWriter, err := database.NewLocalFileDatabaseWriter(newFilePath, config.LockFile, config.Verbose)
 	if err != nil {
@@ -142,8 +154,10 @@ func (g *GeoIP2State) runGeoIP2Update() {
 	if _, err := os.Stat(newFilePath); errors.Is(err, fs.ErrNotExist) {
 		caddy.Log().Named("http.handlers.geoip2").Error(fmt.Sprintf("downloadfile Error %v", err))
 	} else {
-		e := os.Rename(newFilePath, filePath)
 
+		caddy.Log().Named("http.handlers.geoip2").Debug(fmt.Sprintf("downloadfile Error %v", err))
+		e := os.Rename(newFilePath, filePath)
+		caddy.Log().Named("http.handlers.geoip2").Debug(fmt.Sprintf("rename  %s %s %v", newFilePath, filePath, e))
 		if e != nil {
 			caddy.Log().Named("http.handlers.geoip2").Error(fmt.Sprintf("rename file  Error %v", err))
 			return
@@ -162,7 +176,6 @@ func (g *GeoIP2State) runGeoIP2Update() {
 }
 
 func (g *GeoIP2State) runGeoIP2UpdateLoop() {
-	go g.runGeoIP2Update()
 	g.done = make(chan bool, 1)
 	go func(t time.Duration) {
 		tick := time.NewTicker(t).C
