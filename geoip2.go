@@ -3,12 +3,9 @@ package geoip2
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/caddyserver/caddy/v2"
@@ -114,13 +111,11 @@ type GeoIP2 struct {
 func init() {
 	caddy.RegisterModule(GeoIP2{})
 	httpcaddyfile.RegisterHandlerDirective("geoip2_vars", parseCaddyfile)
-	httpcaddyfile.RegisterGlobalOption("geoip2", parseGeoip2)
 	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("init"))
 }
 
 func (GeoIP2) CaddyModule() caddy.ModuleInfo {
 	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("CaddyModule"))
-
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.geoip2",
 		New: func() caddy.Module { return new(GeoIP2) },
@@ -258,7 +253,6 @@ func getClientIP(r *http.Request, strict bool) (net.IP, error) {
 
 // for http handler
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-
 	var m GeoIP2
 	err := m.UnmarshalCaddyfile(h.Dispenser)
 	return m, err
@@ -281,19 +275,7 @@ func (g *GeoIP2) Provision(ctx caddy.Context) error {
 }
 func (g GeoIP2) Validate() error {
 	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("Validate"))
-
-	if geoIP2State.DatabaseDirectory == "" || geoIP2State.EditionID == "" {
-		return fmt.Errorf("DatabaseDirectory %s EditionID %s is not avalidate", geoIP2State.DatabaseDirectory, geoIP2State.EditionID)
-	}
-
-	if geoIP2State.AccountID <= 0 || geoIP2State.LicenseKey == "" || geoIP2State.UpdateFrequency <= 0 {
-		filePath := filepath.Join(geoIP2State.DatabaseDirectory, geoIP2State.EditionID+".mmdb")
-		if _, err := os.Stat(filePath); errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("DatabaseDirectory %s EditionID %s file not found", geoIP2State.DatabaseDirectory, geoIP2State.EditionID)
-		}
-	}
 	return nil
-
 }
 
 // Interface guards
