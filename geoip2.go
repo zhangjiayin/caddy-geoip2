@@ -111,11 +111,9 @@ type GeoIP2 struct {
 func init() {
 	caddy.RegisterModule(GeoIP2{})
 	httpcaddyfile.RegisterHandlerDirective("geoip2_vars", parseCaddyfile)
-	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("init"))
 }
 
 func (GeoIP2) CaddyModule() caddy.ModuleInfo {
-	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("CaddyModule"))
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.geoip2",
 		New: func() caddy.Module { return new(GeoIP2) },

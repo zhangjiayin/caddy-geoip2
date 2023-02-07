@@ -38,11 +38,9 @@ var geoIP2State = GeoIP2State{}
 func init() {
 	caddy.RegisterModule(geoIP2State)
 	httpcaddyfile.RegisterGlobalOption("geoip2", parseGeoip2)
-	caddy.Log().Named("geoip2").Info(fmt.Sprintf("init"))
 }
 
 func (GeoIP2State) CaddyModule() caddy.ModuleInfo {
-	caddy.Log().Named("geoip2").Info(fmt.Sprintf("CaddyModule"))
 	return caddy.ModuleInfo{
 		ID:  "geoip2",
 		New: func() caddy.Module { return &geoIP2State },
