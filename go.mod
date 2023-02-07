@@ -1,4 +1,4 @@
-module github.com/zhangjiayin/caddy-geoip2/v2
+module github.com/zhangjiayin/caddy-geoip2
 
 go 1.19
 
