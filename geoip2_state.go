@@ -33,7 +33,7 @@ type GeoIP2State struct {
 
 var geoIP2StateMutex = sync.Mutex{}
 
-var geoIP2State = GeoIP2State{}
+var geoIP2State = new(GeoIP2State)
 
 func init() {
 	caddy.RegisterModule(geoIP2State)
@@ -43,7 +43,7 @@ func init() {
 func (GeoIP2State) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "geoip2",
-		New: func() caddy.Module { return &geoIP2State },
+		New: func() caddy.Module { return geoIP2State },
 	}
 }
 
