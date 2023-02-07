@@ -47,6 +47,7 @@ geoip2.location_time_zone:{geoip2.location_time_zone}"
 
 ## variables
 
+- geoip2.ip_address
 - geoip2.country_code
 - geoip2.country_name
 - geoip2.country_eu
