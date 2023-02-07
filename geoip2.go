@@ -130,6 +130,8 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			clientIP, _ := getClientIP(r, strict)
 			geoIP2State.DBHandler.Lookup(clientIP, &record)
 			repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
+
+			repl.Set("geoip2.ip_address", clientIP.String())
 			//country
 			repl.Set("geoip2.country_code", record.Country.ISOCode)
 			val, _ := record.Country.Names["en"]
