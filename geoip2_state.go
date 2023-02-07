@@ -21,6 +21,7 @@ import (
 
 type GeoIP2State struct {
 	DBHandler         *maxminddb.Reader `json:"-"`
+	mutex             *sync.Mutex       `json:"-"`
 	AccountID         int               `json:"accountId,omitempty"`
 	DatabaseDirectory string            `json:"databaseDirectory,omitempty"`
 	LicenseKey        string            `json:"licenseKey,omitempty"`
@@ -31,30 +32,36 @@ type GeoIP2State struct {
 	done              chan bool         `json:"-"`
 }
 
-var geoIP2StateMutex = sync.Mutex{}
+const (
+	moduleName = "geoip2"
+)
 
-var geoIP2State = new(GeoIP2State)
+// var geoIP2State = new(GeoIP2State)
 
 func init() {
-	caddy.RegisterModule(geoIP2State)
+	caddy.RegisterModule(GeoIP2State{})
 	httpcaddyfile.RegisterGlobalOption("geoip2", parseGeoip2)
 }
 
 func (GeoIP2State) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "geoip2",
-		New: func() caddy.Module { return geoIP2State },
+		New: func() caddy.Module { return new(GeoIP2State) },
 	}
 }
 
 func parseGeoip2(d *caddyfile.Dispenser, _ any) (any, error) {
-	err := geoIP2State.UnmarshalCaddyfile(d)
+	state := GeoIP2State{}
+	err := state.UnmarshalCaddyfile(d)
 	return httpcaddyfile.App{
 		Name:  "geoip2",
-		Value: caddyconfig.JSON(geoIP2State, nil),
+		Value: caddyconfig.JSON(state, nil),
 	}, err
 }
 func (g *GeoIP2State) Start() error {
+	if g.mutex == nil {
+		g.mutex = &sync.Mutex{}
+	}
 	caddy.Log().Named("geoip2").Info(fmt.Sprintf("Start"))
 	if g.DatabaseDirectory != "" && g.EditionID != "" {
 		go g.runGeoIP2Update()
@@ -80,8 +87,11 @@ func (g *GeoIP2State) Stop() error {
 
 // for global
 func (g *GeoIP2State) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	geoIP2StateMutex.Lock()
-	defer geoIP2StateMutex.Unlock()
+	if g.mutex == nil {
+		g.mutex = &sync.Mutex{}
+	}
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
 
 	for d.Next() {
 		var value string
@@ -140,8 +150,11 @@ func (g *GeoIP2State) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 }
 
 func (g *GeoIP2State) runGeoIP2Update() {
-	geoIP2StateMutex.Lock()
-	defer geoIP2StateMutex.Unlock()
+	if g.mutex == nil {
+		g.mutex = &sync.Mutex{}
+	}
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
 	config := geoipupdate.Config{
 		AccountID:         g.AccountID,
 		DatabaseDirectory: g.DatabaseDirectory,
@@ -227,9 +240,11 @@ func (g *GeoIP2State) runGeoIP2UpdateLoop() {
 }
 
 func (g *GeoIP2State) Destruct() error {
-
-	geoIP2StateMutex.Lock()
-	defer geoIP2StateMutex.Unlock()
+	if g.mutex == nil {
+		g.mutex = &sync.Mutex{}
+	}
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
 
 	// stop all background tasks
 	if g.done != nil {
@@ -250,14 +265,14 @@ func (g *GeoIP2State) Provision(ctx caddy.Context) error {
 func (g GeoIP2State) Validate() error {
 	caddy.Log().Named("geoip2").Info(fmt.Sprintf("Validate"))
 
-	if geoIP2State.DatabaseDirectory == "" || geoIP2State.EditionID == "" {
-		return fmt.Errorf("DatabaseDirectory %s EditionID %s is not avalidate", geoIP2State.DatabaseDirectory, geoIP2State.EditionID)
+	if g.DatabaseDirectory == "" || g.EditionID == "" {
+		return fmt.Errorf("DatabaseDirectory %s EditionID %s is not avalidate", g.DatabaseDirectory, g.EditionID)
 	}
 
-	if geoIP2State.AccountID <= 0 || geoIP2State.LicenseKey == "" || geoIP2State.UpdateFrequency <= 0 {
-		filePath := filepath.Join(geoIP2State.DatabaseDirectory, geoIP2State.EditionID+".mmdb")
+	if g.AccountID <= 0 || g.LicenseKey == "" || g.UpdateFrequency <= 0 {
+		filePath := filepath.Join(g.DatabaseDirectory, g.EditionID+".mmdb")
 		if _, err := os.Stat(filePath); errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("DatabaseDirectory %s EditionID %s file not found", geoIP2State.DatabaseDirectory, geoIP2State.EditionID)
+			return fmt.Errorf("DatabaseDirectory %s EditionID %s file not found", g.DatabaseDirectory, g.EditionID)
 		}
 	}
 	return nil
@@ -269,4 +284,5 @@ var (
 	_ caddy.Module          = (*GeoIP2State)(nil)
 	_ caddy.Provisioner     = (*GeoIP2State)(nil)
 	_ caddy.Validator       = (*GeoIP2State)(nil)
+	_ caddy.App             = (*GeoIP2State)(nil)
 )

@@ -3,7 +3,6 @@ package geoip2
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -15,6 +14,4 @@ func TestStruct(t *testing.T) {
 	jsonStr := "{\"databaseDirectory\":\"dddd\",\"accountId\":333}"
 	dec := json.NewDecoder(bytes.NewReader([]byte(jsonStr)))
 	dec.DisallowUnknownFields()
-	dec.Decode(&geoIP2State)
-	fmt.Printf("%v", geoIP2State)
 }

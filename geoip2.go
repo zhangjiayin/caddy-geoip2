@@ -105,7 +105,9 @@ type GeoIP2Record struct {
 }
 
 type GeoIP2 struct {
-	Enable string `json:"enable,omitempty"`
+	Enable string        `json:"enable,omitempty"`
+	state  *GeoIP2State  `json:"-"`
+	ctx    caddy.Context `json:"-"`
 }
 
 func init() {
@@ -123,10 +125,10 @@ func (GeoIP2) CaddyModule() caddy.ModuleInfo {
 func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if m.Enable != "off" && m.Enable != "false" && m.Enable != "0" {
 		var record = GeoIP2Record{}
-		if geoIP2State.DBHandler != nil {
+		if m.state != nil && m.state.DBHandler != nil {
 			strict := m.Enable == "strict"
 			clientIP, _ := getClientIP(r, strict)
-			geoIP2State.DBHandler.Lookup(clientIP, &record)
+			m.state.DBHandler.Lookup(clientIP, &record)
 			repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
 
 			repl.Set("geoip2.ip_address", clientIP.String())
@@ -271,6 +273,12 @@ func (m *GeoIP2) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 func (g *GeoIP2) Provision(ctx caddy.Context) error {
 	caddy.Log().Named("http.handlers.geoip2").Info(fmt.Sprintf("Provision"))
+	app, err := ctx.App(moduleName)
+	if err != nil {
+		return fmt.Errorf("getting geoip2 app: %v", err)
+	}
+	g.state = app.(*GeoIP2State)
+	g.ctx = ctx
 	return nil
 }
 func (g GeoIP2) Validate() error {
