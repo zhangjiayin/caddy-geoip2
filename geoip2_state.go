@@ -36,8 +36,6 @@ const (
 	moduleName = "geoip2"
 )
 
-// var geoIP2State = new(GeoIP2State)
-
 func init() {
 	caddy.RegisterModule(GeoIP2State{})
 	httpcaddyfile.RegisterGlobalOption("geoip2", parseGeoip2)
