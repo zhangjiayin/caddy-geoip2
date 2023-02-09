@@ -31,7 +31,7 @@ Manages Downloading and Refreshing the Maxmind Database via https://github.com/m
 }
 
 localhost:8443 {
-   geoip2_vars strict #  0 false off: should turn off.   strict: not use x-forward-for  others: should general
+   geoip2_vars strict #strict: not use header x-forward-for ,wild: use header x-forward-for if exists, trusted_proxies: use header x-forward-for if exists, if trusted_proxies is valid, others & defeault : trusted_proxies
    header geoip-country "{geoip2.country_code}"
    respond "helo geoip2:
 geoip2.country_code:{geoip2.country_code}
