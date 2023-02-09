@@ -110,6 +110,14 @@ type GeoIP2 struct {
 	ctx    caddy.Context `json:"-"`
 }
 
+type IpSafeLevel int
+
+const (
+	Wild           IpSafeLevel = 0
+	TrustedProxies IpSafeLevel = 1
+	Strict         IpSafeLevel = 100
+)
+
 func init() {
 	caddy.RegisterModule(GeoIP2{})
 	httpcaddyfile.RegisterHandlerDirective("geoip2_vars", parseCaddyfile)
@@ -126,12 +134,16 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 	if m.Enable != "off" && m.Enable != "false" && m.Enable != "0" {
 		var record = GeoIP2Record{}
 		if m.state != nil && m.state.DBHandler != nil {
-			strict := m.Enable == "strict"
-			clientIP, _ := getClientIP(r, strict)
+			clientIP, _ := m.getClientIP(r)
 			m.state.DBHandler.Lookup(clientIP, &record)
 			repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
 
-			repl.Set("geoip2.ip_address", clientIP.String())
+			if clientIP == nil {
+				repl.Set("geoip2.ip_address", "")
+			} else {
+				repl.Set("geoip2.ip_address", clientIP.String())
+			}
+
 			//country
 			repl.Set("geoip2.country_code", record.Country.ISOCode)
 			val, _ := record.Country.Names["en"]
@@ -223,11 +235,22 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 	return next.ServeHTTP(w, r)
 }
 
-func getClientIP(r *http.Request, strict bool) (net.IP, error) {
+func (m GeoIP2) getClientIP(r *http.Request) (net.IP, error) {
 	var ip string
 
-	// Use the client ip from the 'X-Forwarded-For' header, if available.
-	if fwdFor := r.Header.Get("X-Forwarded-For"); fwdFor != "" && !strict {
+	trustedProxy := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool)
+
+	safeLevel := TrustedProxies
+
+	if strings.ToLower(m.Enable) == "strict" {
+		safeLevel = Strict
+	} else if strings.ToLower(m.Enable) == "wild" {
+		safeLevel = Wild
+	}
+
+	fwdFor := r.Header.Get("X-Forwarded-For")
+
+	if ((safeLevel == TrustedProxies && trustedProxy) || safeLevel == Wild) && fwdFor != "" {
 		ips := strings.Split(fwdFor, ", ")
 		ip = ips[0]
 	} else {
