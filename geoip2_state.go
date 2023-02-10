@@ -19,17 +19,29 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 )
 
+// geoip2 is global caddy app with http.handlers.geoip2
+// it update geoip2 data automatically by the params
 type GeoIP2State struct {
-	DBHandler         *maxminddb.Reader `json:"-"`
-	mutex             *sync.Mutex       `json:"-"`
-	AccountID         int               `json:"accountId,omitempty"`
-	DatabaseDirectory string            `json:"databaseDirectory,omitempty"`
-	LicenseKey        string            `json:"licenseKey,omitempty"`
-	LockFile          string            `json:"lockFile,omitempty"`
-	EditionID         string            `json:"editionID,omitempty"`
-	UpdateUrl         string            `json:"updateUrl,omitempty"`
-	UpdateFrequency   int               `json:"updateFrequency,omitempty"`
-	done              chan bool         `json:"-"`
+	DBHandler *maxminddb.Reader `json:"-"`
+	mutex     *sync.Mutex       `json:"-"`
+	// Your MaxMind account ID. This was formerly known as UserId.
+	AccountID int `json:"accountId,omitempty"`
+	// The directory to store the database files. Defaults to DATADIR
+	DatabaseDirectory string `json:"databaseDirectory,omitempty"`
+	// Your case-sensitive MaxMind license key.
+	LicenseKey string `json:"licenseKey,omitempty"`
+	// The lock file to use. This ensures only one geoipupdate process can run at a
+	// time.
+	// Note: Once created, this lockfile is not removed from the filesystem.
+	LockFile string `json:"lockFile,omitempty"`
+	//Enter the edition IDs of the databases you would like to update.
+	//Should be  GeoLite2-City
+	EditionID string `json:"editionID,omitempty"`
+	//update url to use. Defaults to https://updates.maxmind.com
+	UpdateUrl string `json:"updateUrl,omitempty"`
+	// The Frequency in seconds to run update. Default to 0, only update On Start
+	UpdateFrequency int       `json:"updateFrequency,omitempty"`
+	done            chan bool `json:"-"`
 }
 
 const (

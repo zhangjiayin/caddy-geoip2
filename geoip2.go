@@ -104,7 +104,13 @@ type GeoIP2Record struct {
 	} `maxminddb:"traits"`
 }
 
+// http.handlers.geoip2 is an GeoIP2 server handler.
+// it uses GeoIP2 Data to identify the location of the IP
 type GeoIP2 struct {
+	// strict: only use remote IP address
+	// wild: use X-Forwarded-For if it exists
+	// trusted_proxies: use X-Forwarded-For if exists when trusted_proxies if valid
+	// default:trusted_proxies
 	Enable string        `json:"enable,omitempty"`
 	state  *GeoIP2State  `json:"-"`
 	ctx    caddy.Context `json:"-"`
