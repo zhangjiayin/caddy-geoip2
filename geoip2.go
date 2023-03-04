@@ -208,6 +208,8 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			val, _ = record.RepresentedCountry.Names["en"]
 			repl.Set("geoip2.representedcountry_name", val)
 
+			repl.Set("geoip2.subdivisions", record.Subdivisions)
+
 			//Traits
 			repl.Set("geoip2.traits_is_anonymous_proxy", record.Traits.IsAnonymousProxy)
 			repl.Set("geoip2.traits_is_anonymous_vpn", record.Traits.IsAnonymousVpn)
