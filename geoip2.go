@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/caddyserver/caddy/v2"
@@ -149,11 +150,16 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			} else {
 				repl.Set("geoip2.ip_address", clientIP.String())
 			}
-
 			//country
 			repl.Set("geoip2.country_code", record.Country.ISOCode)
-			val, _ := record.Country.Names["en"]
-			repl.Set("geoip2.country_name", val)
+
+			for key, element := range record.Country.Names {
+				repl.Set("geoip2.country_names."+key, element)
+				if key == "en" {
+					repl.Set("geoip2.country_name", element)
+				}
+			}
+
 			repl.Set("geoip2.country_eu", record.Country.IsInEuropeanUnion)
 			repl.Set("geoip2.country_locales", record.Country.Locales)
 			repl.Set("geoip2.country_confidence", record.Country.Confidence)
@@ -165,16 +171,29 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			repl.Set("geoip2.continent_locales", record.Continent.Locales)
 			repl.Set("geoip2.continent_names", record.Continent.Names)
 			repl.Set("geoip2.continent_geoname_id", record.Continent.GeoNameID)
-			val, _ = record.Continent.Names["en"]
-			repl.Set("geoip2.continent_name", val)
+			// val, _ = record.Continent.Names["en"]
+			// repl.Set("geoip2.continent_name", val)
+			for key, element := range record.Continent.Names {
+				repl.Set("geoip2.continent_names."+key, element)
+				if key == "en" {
+					repl.Set("geoip2.continent_name", element)
+				}
+			}
 
 			//City
 			repl.Set("geoip2.city_confidence", record.City.Confidence)
 			repl.Set("geoip2.city_locales", record.City.Locales)
 			repl.Set("geoip2.city_names", record.City.Names)
 			repl.Set("geoip2.city_geoname_id", record.City.GeoNameID)
-			val, _ = record.City.Names["en"]
-			repl.Set("geoip2.city_name", val)
+			// val, _ = record.City.Names["en"]
+			// repl.Set("geoip2.city_name", val)
+
+			for key, element := range record.City.Names {
+				repl.Set("geoip2.city_names."+key, element)
+				if key == "en" {
+					repl.Set("geoip2.city_name", element)
+				}
+			}
 
 			//Location
 			repl.Set("geoip2.location_latitude", record.Location.Latitude)
@@ -194,8 +213,15 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			repl.Set("geoip2.registeredcountry_is_in_european_union", record.RegisteredCountry.IsInEuropeanUnion)
 			repl.Set("geoip2.registeredcountry_iso_code", record.RegisteredCountry.IsoCode)
 			repl.Set("geoip2.registeredcountry_names", record.RegisteredCountry.Names)
-			val, _ = record.RegisteredCountry.Names["en"]
-			repl.Set("geoip2.registeredcountry_name", val)
+			// val, _ = record.RegisteredCountry.Names["en"]
+			// repl.Set("geoip2.registeredcountry_name", val)
+
+			for key, element := range record.RegisteredCountry.Names {
+				repl.Set("geoip2.registeredcountry_names."+key, element)
+				if key == "en" {
+					repl.Set("geoip2.registeredcountry_name", element)
+				}
+			}
 
 			//RepresentedCountry
 			repl.Set("geoip2.representedcountry_geoname_id", record.RepresentedCountry.GeoNameID)
@@ -205,8 +231,36 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			repl.Set("geoip2.representedcountry_locales", record.RepresentedCountry.Locales)
 			repl.Set("geoip2.representedcountry_confidence", record.RepresentedCountry.Confidence)
 			repl.Set("geoip2.representedcountry_type", record.RepresentedCountry.Type)
-			val, _ = record.RepresentedCountry.Names["en"]
-			repl.Set("geoip2.representedcountry_name", val)
+			// val, _ = record.RepresentedCountry.Names["en"]
+			// repl.Set("geoip2.representedcountry_name", val)
+
+			for key, element := range record.RepresentedCountry.Names {
+				repl.Set("geoip2.representedcountry_names."+key, element)
+				if key == "en" {
+					repl.Set("geoip2.representedcountry_name", element)
+				}
+			}
+
+			repl.Set("geoip2.subdivisions", record.Subdivisions)
+
+			for index, subdivision := range record.Subdivisions {
+				indexStr := strconv.Itoa(index)
+				repl.Set("geoip2.subdivisions."+indexStr+".confidence", subdivision.Confidence)
+				repl.Set("geoip2.subdivisions."+indexStr+".geoname_id", subdivision.GeoNameID)
+				repl.Set("geoip2.subdivisions."+indexStr+".iso_code", subdivision.IsoCode)
+				repl.Set("geoip2.subdivisions."+indexStr+".locales", subdivision.Locales)
+				repl.Set("geoip2.subdivisions."+indexStr+".names", subdivision.Names)
+				for key, element := range subdivision.Locales {
+					keyStr := strconv.Itoa(key)
+					repl.Set("geoip2.subdivisions."+indexStr+".locales."+keyStr, element)
+				}
+				for key, element := range subdivision.Names {
+					repl.Set("geoip2.subdivisions."+indexStr+".names."+key, element)
+					if key == "en" {
+						repl.Set("geoip2.subdivisions."+indexStr+".name", element)
+					}
+				}
+			}
 
 			//Traits
 			repl.Set("geoip2.traits_is_anonymous_proxy", record.Traits.IsAnonymousProxy)
