@@ -150,11 +150,12 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			} else {
 				repl.Set("geoip2.ip_address", clientIP.String())
 			}
+
 			//country
 			repl.Set("geoip2.country_code", record.Country.ISOCode)
 
 			for key, element := range record.Country.Names {
-				repl.Set("geoip2.country_names."+key, element)
+				repl.Set("geoip2.country_names_"+key, element)
 				if key == "en" {
 					repl.Set("geoip2.country_name", element)
 				}
@@ -171,10 +172,9 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			repl.Set("geoip2.continent_locales", record.Continent.Locales)
 			repl.Set("geoip2.continent_names", record.Continent.Names)
 			repl.Set("geoip2.continent_geoname_id", record.Continent.GeoNameID)
-			// val, _ = record.Continent.Names["en"]
-			// repl.Set("geoip2.continent_name", val)
+
 			for key, element := range record.Continent.Names {
-				repl.Set("geoip2.continent_names."+key, element)
+				repl.Set("geoip2.continent_names_"+key, element)
 				if key == "en" {
 					repl.Set("geoip2.continent_name", element)
 				}
@@ -189,7 +189,7 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			// repl.Set("geoip2.city_name", val)
 
 			for key, element := range record.City.Names {
-				repl.Set("geoip2.city_names."+key, element)
+				repl.Set("geoip2.city_names_"+key, element)
 				if key == "en" {
 					repl.Set("geoip2.city_name", element)
 				}
@@ -217,7 +217,7 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			// repl.Set("geoip2.registeredcountry_name", val)
 
 			for key, element := range record.RegisteredCountry.Names {
-				repl.Set("geoip2.registeredcountry_names."+key, element)
+				repl.Set("geoip2.registeredcountry_names_"+key, element)
 				if key == "en" {
 					repl.Set("geoip2.registeredcountry_name", element)
 				}
@@ -235,7 +235,7 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			// repl.Set("geoip2.representedcountry_name", val)
 
 			for key, element := range record.RepresentedCountry.Names {
-				repl.Set("geoip2.representedcountry_names."+key, element)
+				repl.Set("geoip2.representedcountry_names_"+key, element)
 				if key == "en" {
 					repl.Set("geoip2.representedcountry_name", element)
 				}
@@ -245,19 +245,19 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 
 			for index, subdivision := range record.Subdivisions {
 				indexStr := strconv.Itoa(index)
-				repl.Set("geoip2.subdivisions."+indexStr+".confidence", subdivision.Confidence)
-				repl.Set("geoip2.subdivisions."+indexStr+".geoname_id", subdivision.GeoNameID)
-				repl.Set("geoip2.subdivisions."+indexStr+".iso_code", subdivision.IsoCode)
-				repl.Set("geoip2.subdivisions."+indexStr+".locales", subdivision.Locales)
-				repl.Set("geoip2.subdivisions."+indexStr+".names", subdivision.Names)
+				repl.Set("geoip2.subdivisions_"+indexStr+"_confidence", subdivision.Confidence)
+				repl.Set("geoip2.subdivisions_"+indexStr+"_geoname_id", subdivision.GeoNameID)
+				repl.Set("geoip2.subdivisions_"+indexStr+"_iso_code", subdivision.IsoCode)
+				repl.Set("geoip2.subdivisions_"+indexStr+"_locales", subdivision.Locales)
+				repl.Set("geoip2.subdivisions_"+indexStr+"_names", subdivision.Names)
 				for key, element := range subdivision.Locales {
 					keyStr := strconv.Itoa(key)
-					repl.Set("geoip2.subdivisions."+indexStr+".locales."+keyStr, element)
+					repl.Set("geoip2.subdivisions_"+indexStr+"_locales_"+keyStr, element)
 				}
 				for key, element := range subdivision.Names {
-					repl.Set("geoip2.subdivisions."+indexStr+".names."+key, element)
+					repl.Set("geoip2.subdivisions_"+indexStr+"_names_"+key, element)
 					if key == "en" {
-						repl.Set("geoip2.subdivisions."+indexStr+".name", element)
+						repl.Set("geoip2.subdivisions_"+indexStr+"_name", element)
 					}
 				}
 			}
