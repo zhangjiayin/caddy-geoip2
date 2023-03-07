@@ -244,7 +244,7 @@ func (m GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
 			repl.Set("geoip2.subdivisions", record.Subdivisions)
 
 			for index, subdivision := range record.Subdivisions {
-				indexStr := strconv.Itoa(index)
+				indexStr := strconv.Itoa(index + 1)
 				repl.Set("geoip2.subdivisions_"+indexStr+"_confidence", subdivision.Confidence)
 				repl.Set("geoip2.subdivisions_"+indexStr+"_geoname_id", subdivision.GeoNameID)
 				repl.Set("geoip2.subdivisions_"+indexStr+"_iso_code", subdivision.IsoCode)
