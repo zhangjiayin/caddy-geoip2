@@ -6,41 +6,51 @@ Manages Downloading and Refreshing the Maxmind Database via https://github.com/m
 
 ## Build
 
-```
- xcaddy  \
+```sh
+xcaddy  \
   --with github.com/zhangjiayin/caddy-geoip2
 ```
 
-## Examples
+## Caddyfile example
 
 ```
 {
-  http_port     8080
-  https_port    8443
   order geoip2_vars first
-  #you can only config databaseDirectory and editionID if autoupdate is not you wanted.
+
+  # Only configure databaseDirectory and editionID when autoupdate is not desired.
   geoip2 {
-     accountId xxxx
-     databaseDirectory "/var/lib/geoip2/data"
-     licenseKey        "xxxx"
-     lockFile:          ""
-     editionID "GeoLite2-City"
-     updateUrl   "https://updates.maxmind.com"
-     updateFrequency  86400 #in seconds
-   }
+    accountId         xxxx
+    databaseDirectory "/tmp/"
+    licenseKey        "xxxx"
+    lockFile          "/tmp/geoip2.lock"
+    editionID         "GeoLite2-City"
+    updateUrl         "https://updates.maxmind.com"
+    updateFrequency   86400   # in seconds
+  }
 }
 
-localhost:8443 {
-   geoip2_vars strict #strict: not use 'X-Forwarded-For' header ,wild: use 'X-Forwarded-For' header if exists, trusted_proxies: use header 'X-Forwarded-For' header if exists, if trusted_proxies is valid, others & defeault : trusted_proxies
-   header geoip-country "{geoip2.country_code}"
-   respond "helo geoip2:
-geoip2.country_code:{geoip2.country_code}
-geoip2.country_name:{geoip2.country_name}
-geoip2.city_geoname_id:{geoip2.city_geoname_id}
-geoip2.city_name:{geoip2.city_name}
-geoip2.location_latitude:{geoip2.location_latitude}
-geoip2.location_longitude:{geoip2.location_longitude}
-geoip2.location_time_zone:{geoip2.location_time_zone}"
+localhost {
+  geoip2_vars strict 
+  # strict: Alway ignore 'X-Forwarded-For' header 
+  # wild:   Trust 'X-Forwarded-For' header if existed
+  # trusted_proxies: Trust 'X-Forwarded-For' header if trusted_proxies is also valid (see https://caddyserver.com/docs/caddyfile/options#trusted-proxies)
+  # defeault: trusted_proxies
+
+  # Add country and state code to the header
+  header geoip-country "{geoip2.country_code}"
+  header geoip-subdivision "{geoip2.subdivisions_1_iso_code}"
+
+  # Respond to anyone in the US and Canada, but not from Ohio
+  @geofilter expression ({geoip2.country_code} == "US" || {geoip2.country_code} == "CA") && {geoip2.subdivisions_1_iso_code} != "OH"
+  
+  respond @geofilter "hello everyone except Ohioan:
+    geoip2.country_code:{geoip2.country_code}
+    geoip2.country_name:{geoip2.country_name}
+    geoip2.city_geoname_id:{geoip2.city_geoname_id}
+    geoip2.city_name:{geoip2.city_name}
+    geoip2.location_latitude:{geoip2.location_latitude}
+    geoip2.location_longitude:{geoip2.location_longitude}
+    geoip2.location_time_zone:{geoip2.location_time_zone}"
 }
 
 ```
@@ -80,7 +90,7 @@ geoip2.location_time_zone:{geoip2.location_time_zone}"
 - geoip2.registeredcountry_names
 - geoip2.registeredcountry_name
 - geoip2.representedcountry_geoname_id
-- geoip2.representedcountry_is_in_european_union
+- geoip2.representedcountry_is_in_european_union	
 - geoip2.representedcountry_iso_code
 - geoip2.representedcountry_names
 - geoip2.representedcountry_locales
