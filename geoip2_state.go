@@ -149,7 +149,7 @@ func (g *GeoIP2State) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		g.DatabaseDirectory = "/tmp/"
 	}
 	if g.LockFile == "" {
-		g.LockFile = "geoip2.lock"
+		g.LockFile = "/tmp/geoip2.lock"
 	}
 
 	if g.EditionID == "" {
