@@ -34,7 +34,7 @@ localhost {
   # strict: Alway ignore 'X-Forwarded-For' header 
   # wild:   Trust 'X-Forwarded-For' header if existed
   # trusted_proxies: Trust 'X-Forwarded-For' header if trusted_proxies is also valid (see https://caddyserver.com/docs/caddyfile/options#trusted-proxies)
-  # defeault: trusted_proxies
+  # default: trusted_proxies
 
   # Add country and state code to the header
   header geoip-country "{geoip2.country_code}"
