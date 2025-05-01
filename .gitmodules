@@ -1,0 +1,3 @@
+[submodule "replacer/test-data"]
+	path = replacer/test-data
+	url = https://github.com/maxmind/MaxMind-DB
