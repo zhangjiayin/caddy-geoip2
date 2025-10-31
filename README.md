@@ -7,7 +7,7 @@ Manages Downloading and Refreshing the Maxmind Database via https://github.com/m
 ## Build
 
 ```sh
-xcaddy  \
+xcaddy build \
   --with github.com/zhangjiayin/caddy-geoip2
 ```
 
