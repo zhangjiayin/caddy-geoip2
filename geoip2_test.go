@@ -17,5 +17,5 @@ func TestStruct(t *testing.T) {
 	dec := json.NewDecoder(bytes.NewReader([]byte(jsonStr)))
 	dec.DisallowUnknownFields()
 	dec.Decode(&geoIP2State)
-	fmt.Printf("%v\n", geoIP2State)
+	fmt.Printf("%v\n", geoIP2State.AccountID)
 }
