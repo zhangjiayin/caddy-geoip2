@@ -26,7 +26,7 @@ xcaddy build \
     databaseDirectory "/tmp/"
     licenseKey        "xxxx"
     lockFile          "/tmp/geoip2.lock"
-    editionIDs        "GeoLite2-City,GeoLite2-ASN"
+    editionID        "GeoLite2-City,GeoLite2-ASN"
     updateUrl         "https://updates.maxmind.com"
     updateFrequency   86400   # in seconds
   }
