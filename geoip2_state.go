@@ -283,6 +283,12 @@ func (g *GeoIP2State) runGeoIPUpdate() {
 	}
 }
 
+func (g *GeoIP2State) hasDBReaders() bool {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+	return g.dbReaders != nil
+}
+
 var (
 	_ caddyfile.Unmarshaler = (*GeoIP2State)(nil)
 	_ caddy.Module          = (*GeoIP2State)(nil)

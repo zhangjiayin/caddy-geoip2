@@ -64,7 +64,7 @@ func (m *GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	replacer.SetDefaultValues(repl)
 
 	if m.mode != modeDisabled {
-		if m.state != nil && m.state.dbReaders != nil {
+		if m.state != nil && m.state.hasDBReaders() {
 			clientIP, err := m.getClientIP(r)
 			if err != nil {
 				caddy.Log().Named("http.handlers.geoip2").Error(
