@@ -286,6 +286,12 @@ func (g *GeoIP2State) runGeoIPUpdate() {
 	}
 }
 
+func (g *GeoIP2State) hasDBReaders() bool {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+	return g.dbReaders != nil
+}
+
 func (g *GeoIP2State) ensureDirectories() error {
 	// Create the database directory if needed
 	if err := mkdirIfMissing(g.DatabaseDirectory); err != nil {
