@@ -91,6 +91,9 @@ func (g *GeoIP2State) CaddyModule() caddy.ModuleInfo {
 // Start implements caddy.App.
 func (g *GeoIP2State) Start() error {
 	caddy.Log().Named(moduleName).Debug("start")
+	if err := g.ensureDirectories(); err != nil {
+		return err
+	}
 	go g.loadGeoIPReaders()
 	go g.runGeoIPUpdate()
 	return nil
@@ -281,6 +284,31 @@ func (g *GeoIP2State) runGeoIPUpdate() {
 			}
 		}
 	}
+}
+
+func (g *GeoIP2State) ensureDirectories() error {
+	// Create the database directory if needed
+	if err := mkdirIfMissing(g.DatabaseDirectory); err != nil {
+		return fmt.Errorf("ensuring database directory %q: %w", g.DatabaseDirectory, err)
+	}
+
+	// Create the lock file directory if needed
+	lockFileDir := filepath.Dir(g.LockFile)
+
+	if err := mkdirIfMissing(lockFileDir); err != nil {
+		return fmt.Errorf("ensuring lock file directory %q: %w", lockFileDir, err)
+	}
+
+	return nil
+}
+
+func mkdirIfMissing(path string) error {
+	if path == "" {
+		// If the folder path is empty, we can't create it
+		return nil
+	}
+
+	return os.MkdirAll(path, 0o700)
 }
 
 var (
