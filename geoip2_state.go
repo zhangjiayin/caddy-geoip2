@@ -308,7 +308,7 @@ func mkdirIfMissing(path string) error {
 		return nil
 	}
 
-	return os.MkdirAll(path, 0o600)
+	return os.MkdirAll(path, 0o700)
 }
 
 var (
