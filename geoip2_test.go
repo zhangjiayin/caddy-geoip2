@@ -62,3 +62,46 @@ const cfg = `{
 	header * x-geo-country "{geoip2.country_code}"
 	respond 204
 }`
+
+// TestServeAfterReloads reloads the config repeatedly and checks the lookup after
+// each reload. With one module instance shared between configs, the old config's
+// Stop() could close the readers the new config had just opened, leaving every
+// {geoip2.*} placeholder empty until the next restart.
+func TestServeAfterReloads(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	for i := 0; i < 30; i++ {
+		// A different config each time: Caddy skips loading an identical one.
+		tester.InitServer(fmt.Sprintf(reloadCfg, caddytest.Default.AdminPort, i), "caddyfile")
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:8080", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("X-Forwarded-For", "81.2.69.160")
+
+		resp := tester.AssertResponseCode(req, http.StatusNoContent)
+		if got := resp.Header.Get("x-geo-country"); got != "GB" {
+			t.Fatalf("reload %d: geoip2.country_code = %q, want %q", i, got, "GB")
+		}
+	}
+}
+
+const reloadCfg = `{
+    admin :%d
+    auto_https off
+    order geoip2_vars first
+    geoip2 {
+        databaseDirectory "replacer/test-data/test-data"
+        editionID        "GeoLite2-Country-Test"
+    }
+	servers {
+        trusted_proxies static private_ranges
+    }
+}
+
+:8080 {
+	geoip2_vars trusted_proxies
+	header * x-geo-country "{geoip2.country_code}"
+	header * x-config "%d"
+	respond 204
+}`

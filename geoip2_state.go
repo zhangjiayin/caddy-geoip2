@@ -83,8 +83,11 @@ func init() {
 // CaddyModule implements caddy.Module.
 func (g *GeoIP2State) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  moduleName,
-		New: func() caddy.Module { return g },
+		ID: moduleName,
+		// Each config load needs its own instance: on reload Caddy starts the new
+		// config before stopping the old one, and a shared instance let the old
+		// config's Stop() close the readers the new config had just opened.
+		New: func() caddy.Module { return new(GeoIP2State) },
 	}
 }
 
@@ -94,8 +97,13 @@ func (g *GeoIP2State) Start() error {
 	if err := g.ensureDirectories(); err != nil {
 		return err
 	}
-	go g.loadGeoIPReaders()
-	go g.runGeoIPUpdate()
+	// Load synchronously so the config never serves requests without a database.
+	g.loadGeoIPReaders()
+	if g.AccountID > 0 && g.LicenseKey != "" {
+		g.done = make(chan struct{}, 1)
+		g.wg.Add(1)
+		go g.runGeoIPUpdate()
+	}
 	return nil
 }
 
@@ -217,16 +225,16 @@ func (g *GeoIP2State) loadGeoIPReaders() {
 	}
 
 	g.mutex.Lock()
-	defer g.mutex.Unlock()
+	previous := g.dbReaders
 	g.dbReaders = dbReaders
+	g.mutex.Unlock()
+	// Readers replaced by a database update belong to this instance only.
+	for _, r := range previous {
+		r.Close()
+	}
 }
 
 func (g *GeoIP2State) runGeoIPUpdate() {
-	if g.AccountID <= 0 || g.LicenseKey == "" {
-		return
-	}
-	g.done = make(chan struct{}, 1)
-	g.wg.Add(1)
 	defer g.wg.Done()
 
 	config := geoipupdate.Config{
