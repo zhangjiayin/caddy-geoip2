@@ -54,7 +54,7 @@ func init() {
 func (m *GeoIP2) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.geoip2",
-		New: func() caddy.Module { return m },
+		New: func() caddy.Module { return new(GeoIP2) },
 	}
 }
 

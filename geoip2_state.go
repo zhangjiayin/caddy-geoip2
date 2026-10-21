@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,13 +27,15 @@ import (
 // to manage GeoIP database access and updates.
 type GeoIP2State struct {
 	// mutex synchronizes access to dbReaders.
-	mutex     sync.RWMutex
-	dbReaders []replacer.Replacer
+	mutex         sync.RWMutex
+	dbReaders     []replacer.Replacer
+	readerCleanup runtime.Cleanup
 
 	// done and wg are used to exit gracefully
 	// and wait for any update to complete first.
-	done chan struct{}
-	wg   sync.WaitGroup
+	done     chan struct{}
+	wg       sync.WaitGroup
+	stopOnce sync.Once
 
 	// AccountID is your MaxMind account ID. This was formerly known as UserId.
 	AccountID int `json:"accountId,omitempty"`
@@ -83,8 +86,11 @@ func init() {
 // CaddyModule implements caddy.Module.
 func (g *GeoIP2State) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  moduleName,
-		New: func() caddy.Module { return g },
+		ID: moduleName,
+		// Each config load needs its own instance: on reload Caddy starts the new
+		// config before stopping the old one, and a shared instance let the old
+		// config's Stop() close the readers the new config had just opened.
+		New: func() caddy.Module { return new(GeoIP2State) },
 	}
 }
 
@@ -94,8 +100,11 @@ func (g *GeoIP2State) Start() error {
 	if err := g.ensureDirectories(); err != nil {
 		return err
 	}
-	go g.loadGeoIPReaders()
-	go g.runGeoIPUpdate()
+	if g.AccountID > 0 && g.LicenseKey != "" {
+		g.done = make(chan struct{})
+		g.wg.Add(1)
+		go g.runGeoIPUpdate()
+	}
 	return nil
 }
 
@@ -103,24 +112,25 @@ func (g *GeoIP2State) Start() error {
 func (g *GeoIP2State) Stop() error {
 	caddy.Log().Named(moduleName).Debug("stop")
 
-	if g.done != nil {
-		close(g.done)
-	}
+	g.stopOnce.Do(func() {
+		if g.done != nil {
+			close(g.done)
+		}
+	})
 	g.wg.Wait()
 
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-	caddy.Log().Named(moduleName).Debug("closing geoip database readers")
-	for _, r := range g.dbReaders {
-		r.Close()
-	}
-	g.dbReaders = nil
+	// Caddy can still be draining old HTTP requests after Stop returns. Keep the
+	// final readers available to their handlers; readerCleanup closes them once
+	// this state is no longer reachable. Replaced readers are closed immediately.
 	return nil
 }
 
 // Provision implements caddy.Provisioner.
 func (g *GeoIP2State) Provision(_ caddy.Context) error {
 	caddy.Log().Named(moduleName).Debug("provision")
+	// Open existing local databases before any apps start serving requests.
+	// Missing databases can still be downloaded asynchronously after Start.
+	g.loadGeoIPReaders()
 	return nil
 }
 
@@ -193,6 +203,8 @@ func (g *GeoIP2State) lookup(repl *caddy.Replacer, clientIP net.IP) {
 	for _, r := range g.dbReaders {
 		r.Lookup(repl, clientIP)
 	}
+	// The cleanup must not close the memory mappings during a lookup.
+	runtime.KeepAlive(g)
 }
 
 func (g *GeoIP2State) loadGeoIPReaders() {
@@ -216,18 +228,44 @@ func (g *GeoIP2State) loadGeoIPReaders() {
 		dbReaders = append(dbReaders, dbReader)
 	}
 
+	g.replaceReaders(dbReaders)
+}
+
+func (g *GeoIP2State) replaceReaders(dbReaders []replacer.Replacer) {
 	g.mutex.Lock()
-	defer g.mutex.Unlock()
+	if len(dbReaders) == 0 && len(g.dbReaders) > 0 {
+		// A failed reload must not discard databases that are still usable.
+		g.mutex.Unlock()
+		return
+	}
+	previous := g.dbReaders
+	g.readerCleanup.Stop()
 	g.dbReaders = dbReaders
+	if len(dbReaders) > 0 {
+		// Neither the cleanup function nor its argument may retain g.
+		g.readerCleanup = runtime.AddCleanup(g, closeGeoIPReaders, dbReaders)
+	}
+	g.mutex.Unlock()
+	closeGeoIPReaders(previous)
+	// Keep g reachable until its previous cleanup has been canceled.
+	runtime.KeepAlive(g)
+}
+
+func closeGeoIPReaders(readers []replacer.Replacer) {
+	for _, reader := range readers {
+		if err := reader.Close(); err != nil {
+			caddy.Log().Named(moduleName).Warn("closing geoip database reader", zap.Error(err))
+		}
+	}
 }
 
 func (g *GeoIP2State) runGeoIPUpdate() {
-	if g.AccountID <= 0 || g.LicenseKey == "" {
-		return
-	}
-	g.done = make(chan struct{}, 1)
-	g.wg.Add(1)
 	defer g.wg.Done()
+	select {
+	case <-g.done:
+		return
+	default:
+	}
 
 	config := geoipupdate.Config{
 		AccountID:         g.AccountID,
@@ -274,10 +312,11 @@ func (g *GeoIP2State) runGeoIPUpdate() {
 	update()
 
 	if g.UpdateFrequency != 0 {
-		tick := time.NewTicker(time.Second * time.Duration(g.UpdateFrequency)).C
+		ticker := time.NewTicker(time.Second * time.Duration(g.UpdateFrequency))
+		defer ticker.Stop()
 		for {
 			select {
-			case <-tick:
+			case <-ticker.C:
 				update()
 			case <-g.done:
 				return
@@ -287,9 +326,9 @@ func (g *GeoIP2State) runGeoIPUpdate() {
 }
 
 func (g *GeoIP2State) hasDBReaders() bool {
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-	return g.dbReaders != nil
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+	return len(g.dbReaders) > 0
 }
 
 func (g *GeoIP2State) ensureDirectories() error {
