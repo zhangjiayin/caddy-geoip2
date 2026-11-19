@@ -58,6 +58,8 @@ type GeoIP2 struct {
 	// - "strict": only use remote IP address (ignore X-Forwarded-For)
 	// - "wild": trust X-Forwarded-For header unconditionally
 	// - "trusted_proxies": trust X-Forwarded-For only from trusted proxies (default)
+	// - "client_ip": use the client IP Caddy determined itself (trusted_proxies,
+	//   trusted_proxies_strict and client_ip_headers of the server)
 	// - "off"/"false"/"0": disable GeoIP2 lookups
 	Enable string `json:"enable,omitempty"`
 
@@ -74,6 +76,7 @@ type IpSafeLevel int
 const (
 	Wild           IpSafeLevel = 0   // Trust any X-Forwarded-For header
 	TrustedProxies IpSafeLevel = 1   // Only trust X-Forwarded-For from trusted proxies
+	ClientIP       IpSafeLevel = 2   // Use the client IP Caddy determined for the request
 	Strict         IpSafeLevel = 100 // Never trust X-Forwarded-For, use RemoteAddr only
 )
 
@@ -277,7 +280,7 @@ func (m GeoIP2) getClientIP(r *http.Request) (net.IP, error) {
 	var ipStr string
 
 	// Determine if we're behind a trusted proxy
-	trustedProxy := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool)
+	trustedProxy, _ := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool)
 
 	// Convert string setting to safety level
 	safeLevel := m.getSafetyLevel()
@@ -285,9 +288,21 @@ func (m GeoIP2) getClientIP(r *http.Request) (net.IP, error) {
 	// Get X-Forwarded-For header if present
 	forwardedFor := r.Header.Get("X-Forwarded-For")
 
+	// The client IP Caddy determined before any handler ran. For a trusted
+	// proxy it comes from the client IP headers, read the way the server is
+	// configured (with trusted_proxies_strict from the right, skipping
+	// trusted proxies); for anyone else it is the connection's address.
+	// Empty when Caddy could not parse the connection's address.
+	caddyClientIP, _ := caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string)
+
 	// Decide which IP to use based on safety level and proxy trust
-	if ((safeLevel == TrustedProxies && trustedProxy) || safeLevel == Wild) && forwardedFor != "" {
-		// Use X-Forwarded-For header (take first IP in chain)
+	if safeLevel == ClientIP && caddyClientIP != "" {
+		ipStr = caddyClientIP
+	} else if ((safeLevel == TrustedProxies && trustedProxy) || safeLevel == Wild) && forwardedFor != "" {
+		// Use X-Forwarded-For header (take first IP in chain).
+		// The first entry is the one the client itself can write: a trusted
+		// proxy appends to the header, it does not replace it. Use
+		// "client_ip" when the result must not be forgeable.
 		ips := strings.Split(forwardedFor, ", ")
 		ipStr = strings.TrimSpace(ips[0])
 	} else {
@@ -321,6 +336,8 @@ func (m *GeoIP2) getSafetyLevel() IpSafeLevel {
 		return Strict
 	case "wild":
 		return Wild
+	case "client_ip":
+		return ClientIP
 	default:
 		return TrustedProxies
 	}
@@ -337,7 +354,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 // Parses: geoip2_vars <mode>
 func (m *GeoIP2) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
-		// Parse the mode argument (strict/wild/trusted_proxies)
+		// Parse the mode argument (strict/wild/trusted_proxies/client_ip)
 		if !d.Args(&m.Enable) {
 			return d.ArgErr()
 		}
@@ -368,7 +385,7 @@ func (g GeoIP2) Validate() error {
 	caddy.Log().Named("http.handlers.geoip2").Debug("validating GeoIP2 handler")
 
 	// Validate Enable setting
-	validModes := []string{"strict", "wild", "trusted_proxies", "off", "false", "0", ""}
+	validModes := []string{"strict", "wild", "trusted_proxies", "client_ip", "off", "false", "0", ""}
 	mode := strings.ToLower(g.Enable)
 	for _, valid := range validModes {
 		if mode == valid {

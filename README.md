@@ -45,6 +45,7 @@ example.com {
   # - strict: only use RemoteAddr (ignore X-Forwarded-For)
   # - wild: trust any X-Forwarded-For header
   # - trusted_proxies: trust X-Forwarded-For only from trusted proxies (default)
+  # - client_ip: use the client IP Caddy determined (recommended behind proxies)
   geoip2_vars strict
 
   # Use GeoIP2 variables in directives
@@ -122,7 +123,10 @@ The module provides 8 essential GeoIP2 variables from 4 specialized databases:
 }
 
 api.example.com {
-  geoip2_vars trusted_proxies
+  # An access rule must not go by an address the client can choose: behind
+  # proxies use client_ip, with trusted_proxies and trusted_proxies_strict
+  # set on the server (see "IP Detection Modes").
+  geoip2_vars client_ip
 
   # Block requests from certain countries
   @blocked_countries expression {geoip2_country_code} in ["CN", "RU", "KP"]
@@ -179,7 +183,7 @@ localhost {
 }
 
 example.com {
-  geoip2_vars trusted_proxies
+  geoip2_vars client_ip
 
   log {
     output file /var/log/caddy/geo.log
@@ -274,9 +278,30 @@ example.com {
 
 ### `trusted_proxies` Mode (Default)
 - **Use case**: Production with known proxy infrastructure
-- **Behavior**: Uses `X-Forwarded-For` only from Caddy's trusted proxies
-- **Pros**: Secure and works with proper proxy setup
-- **Cons**: Requires correct `trusted_proxies` configuration
+- **Behavior**: Uses the **first** entry of `X-Forwarded-For`, only for requests from Caddy's trusted proxies
+- **Pros**: Works with a proxy that replaces the header with the client's address
+- **Cons**: Requires correct `trusted_proxies` configuration. A proxy that appends to the header (most do) leaves the first entry to the client, who can then choose the looked-up address. Prefer `client_ip`.
+
+### `client_ip` Mode
+- **Use case**: Production behind load balancers or CDNs
+- **Behavior**: Uses the client IP Caddy determined for the request, the same value as `{client_ip}` and the `client_ip` matcher. Caddy takes it from the server's `client_ip_headers` (default `X-Forwarded-For`) for requests from `trusted_proxies`, and from the connection for all others. With `trusted_proxies_strict` the header is read from the right and trusted proxies are skipped, so a chain of proxies (load balancer behind a CDN) resolves to the real client.
+- **Pros**: Not forgeable with `trusted_proxies_strict`; one definition of "client" for lookups, logs and access rules
+- **Cons**: Requires correct `trusted_proxies` configuration. Without `trusted_proxies_strict` Caddy itself takes the first entry of the header.
+- **Every proxy in the chain must be in `trusted_proxies`**: Caddy stops at the first address that is not, so a CDN whose ranges are listed only in part gets its edge server looked up instead of the client. Nothing is forged then, but the result is the proxy's location.
+- A CDN that sends the client's address in a header of its own (`CF-Connecting-IP`, for example) needs that header in the server's `client_ip_headers`.
+
+```caddyfile
+{
+  servers {
+    trusted_proxies static 10.0.1.0/24 173.245.48.0/20
+    trusted_proxies_strict
+  }
+}
+
+example.com {
+  geoip2_vars client_ip
+}
+```
 
 ### `wild` Mode
 - **Use case**: Development, testing, or when you can't control proxy headers
