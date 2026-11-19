@@ -99,3 +99,16 @@ func TestValidateModes(t *testing.T) {
 		}
 	}
 }
+
+func TestIsEnabled(t *testing.T) {
+	for _, mode := range []string{"off", "OFF", "Off", "false", "False", "0"} {
+		if (&GeoIP2{Enable: mode}).isEnabled() {
+			t.Errorf("mode %q should switch the lookups off", mode)
+		}
+	}
+	for _, mode := range []string{"", "strict", "wild", "trusted_proxies", "client_ip", "CLIENT_IP"} {
+		if !(&GeoIP2{Enable: mode}).isEnabled() {
+			t.Errorf("mode %q should leave the lookups on", mode)
+		}
+	}
+}

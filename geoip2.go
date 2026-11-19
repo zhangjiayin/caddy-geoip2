@@ -141,8 +141,11 @@ func (m *GeoIP2) initializeVariables(repl *caddy.Replacer) {
 }
 
 // isEnabled checks if GeoIP2 lookups should be performed
+// The mode is case insensitive here as in Validate and getSafetyLevel:
+// "OFF" passes validation and must switch the lookups off too.
 func (m *GeoIP2) isEnabled() bool {
-	return m.Enable != "off" && m.Enable != "false" && m.Enable != "0"
+	mode := strings.ToLower(m.Enable)
+	return mode != "off" && mode != "false" && mode != "0"
 }
 
 // performLookup does the actual GeoIP2 database lookups and sets variables
