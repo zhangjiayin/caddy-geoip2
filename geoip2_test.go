@@ -19,7 +19,13 @@ func TestStruct(t *testing.T) {
 func TestServe(t *testing.T) {
 	server := newGeoIPTestServer(t)
 	server.load(t, 0, "")
-	server.assertCountry(t, server.request(t))
+
+	t.Run("uses the configured client IP header", func(t *testing.T) {
+		server.assertCountry(t, server.request(t, "X-Test-Client-IP", "81.2.69.160"))
+	})
+	t.Run("resolves the client address through a trusted proxy chain", func(t *testing.T) {
+		server.assertCountry(t, server.request(t, "X-Forwarded-For", "81.2.69.160,127.0.0.2"))
+	})
 }
 
 // Every reload must retain working lookups, including requests served by an
@@ -28,7 +34,7 @@ func TestServeAfterReloads(t *testing.T) {
 	server := newGeoIPTestServer(t)
 	for i := 0; i < 30; i++ {
 		server.load(t, i, "")
-		server.assertCountry(t, server.request(t))
+		server.assertCountry(t, server.request(t, "X-Forwarded-For", "81.2.69.160"))
 	}
 }
 

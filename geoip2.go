@@ -33,7 +33,7 @@ type mode string
 // These are the possible values GeoIP2.Enable can have:
 // - "strict" only uses remote IP address.
 // - "wild" uses X-Forwarded-For if it exists.
-// - "trusted_proxies" uses X-Forwarded-For if it exists when trusted_proxies is valid,
+// - "trusted_proxies" uses the client IP determined by the Caddy server,
 // see https://caddyserver.com/docs/caddyfile/options#trusted-proxies.
 // - Lookups can also be disabled by setting it to "off", "false" or "0".
 //
@@ -84,14 +84,14 @@ func (m *GeoIP2) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 
 func (m *GeoIP2) getClientIP(r *http.Request) (net.IP, error) {
 	var ip string
-	trustedProxy := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool)
-	fwdFor := r.Header.Get("X-Forwarded-For")
+	switch m.mode {
+	case modeTrustedProxies:
+		ip, _ = caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string)
+	case modeWild:
+		ip = r.Header.Get("X-Forwarded-For")
+	}
 
-	if ((m.mode == modeTrustedProxies && trustedProxy) || m.mode == modeWild) && fwdFor != "" {
-		ips := strings.Split(fwdFor, ", ")
-		ip = ips[0]
-	} else {
-		// Otherwise, get the client ip from the request remote address.
+	if ip == "" {
 		var err error
 		ip, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
@@ -103,6 +103,8 @@ func (m *GeoIP2) getClientIP(r *http.Request) (net.IP, error) {
 				return nil, err
 			}
 		}
+	} else if m.mode == modeWild {
+		ip, _, _ = strings.Cut(ip, ", ")
 	}
 
 	// Parse the ip address string into a net.IP.

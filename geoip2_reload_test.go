@@ -62,10 +62,12 @@ func (s *geoIPTestServer) load(t *testing.T, version int, gate string) {
 				"editionID":         []string{"GeoLite2-Country-Test"},
 			},
 			"http": map[string]any{"servers": map[string]any{"test": map[string]any{
-				"listen":          []string{s.address},
-				"automatic_https": map[string]any{"disable": true},
-				"trusted_proxies": map[string]any{"source": "static", "ranges": []string{"127.0.0.0/8"}},
-				"routes":          []any{map[string]any{"handle": handlers}},
+				"listen":                 []string{s.address},
+				"automatic_https":        map[string]any{"disable": true},
+				"trusted_proxies":        map[string]any{"source": "static", "ranges": []string{"127.0.0.0/8"}},
+				"trusted_proxies_strict": 1,
+				"client_ip_headers":      []string{"X-Test-Client-IP", "X-Forwarded-For"},
+				"routes":                 []any{map[string]any{"handle": handlers}},
 			}}},
 		},
 	}
@@ -78,13 +80,13 @@ func (s *geoIPTestServer) load(t *testing.T, version int, gate string) {
 	}
 }
 
-func (s *geoIPTestServer) request(t *testing.T) *http.Response {
+func (s *geoIPTestServer) request(t *testing.T, header, value string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+s.address, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("X-Forwarded-For", "81.2.69.160")
+	req.Header.Set(header, value)
 	response, err := s.client.Do(req)
 	if err != nil {
 		t.Fatal(err)

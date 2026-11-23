@@ -35,8 +35,7 @@ xcaddy build \
 localhost {
   # - strict: Always ignore the 'X-Forwarded-For' header.
   # - wild: Trust the 'X-Forwarded-For' header if it exists.
-  # - trusted_proxies: Trust the 'X-Forwarded-For' header only if trusted_proxies is valid.
-  #   See: https://caddyserver.com/docs/caddyfile/options#trusted-proxies
+  # - trusted_proxies: Use the client IP determined by the Caddy server.
   # - default: trusted_proxies
   geoip2_vars strict
 
@@ -58,6 +57,22 @@ localhost {
 }
 
 ```
+
+### Trusted proxy behavior
+
+The default `trusted_proxies` mode uses the same client IP as Caddy's
+`{client_ip}` placeholder. For requests from a trusted proxy, Caddy applies
+its configured `client_ip_headers` and `trusted_proxies_strict` settings.
+If the request comes directly from a peer outside the trusted ranges, Caddy
+uses the peer's address. Enable `trusted_proxies_strict` on the Caddy server
+when your proxies append addresses to `X-Forwarded-For`.
+[Caddy trusted proxy options](https://caddyserver.com/docs/caddyfile/options#trusted-proxies)
+
+When upgrading from v1.3.x, existing `trusted_proxies` configurations
+(including the default mode) can produce different GeoIP results. Earlier
+versions took the first `X-Forwarded-For` entry from trusted proxies. If you
+route requests by geography, verify the results with your proxy setup before
+rolling out the upgrade.
 
 ## variables
 For a complete list of available variables please check the test files in the
